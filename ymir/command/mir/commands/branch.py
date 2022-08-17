@@ -3,7 +3,8 @@ import logging
 
 from mir import scm
 from mir.commands import base
-from mir.tools import checker
+from mir.protos import mir_command_pb2 as mirpb
+from mir.tools import checker, mir_storage_ops, revs_parser
 from mir.tools.code import MirCode
 
 
@@ -20,13 +21,21 @@ class CmdBranch(base.BaseCommand):
             return MirCode.RC_CMD_INVALID_BRANCH_OR_TAG
 
         cmd_opts = []
+        head_task_id = ''
         if force_delete:
             cmd_opts.extend(["-D", force_delete])
+            mir_tasks: mirpb.MirTasks = mir_storage_ops.MirStorageOps.load_single_storage(mir_root=mir_root,
+                                                                                          mir_branch=force_delete,
+                                                                                          ms=mirpb.MirStorage.MIR_TASKS)
+            head_task_id = mir_tasks.head_task_id
 
         repo_git = scm.Scm(mir_root, scm_executable="git")
         output_str = repo_git.branch(cmd_opts)
         if output_str:
             logging.info("\n%s" % output_str)
+
+        if force_delete and head_task_id:
+            repo_git.tag(['-d', revs_parser.join_rev_tid(force_delete, head_task_id)])
 
         return MirCode.RC_OK
 
