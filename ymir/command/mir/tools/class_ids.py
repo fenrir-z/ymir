@@ -199,6 +199,7 @@ class UserLabels(LabelStorage):
                 break
             ret_val.append((class_id, main_name))
         if len(ret_val) == len(main_names):  # all known names.
+            print('all main names are known')  # for test
             return ret_val
 
         if not self.storage_file:
@@ -209,6 +210,7 @@ class UserLabels(LabelStorage):
             for main_name in main_names:
                 added_class_id, main_name = self._add_new_cname(name=main_name)
                 ret_val.append((added_class_id, main_name))
+                print(f"main name: {main_name}, id: {added_class_id}")  # for test
             self.__save()
         return ret_val
 
