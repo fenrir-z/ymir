@@ -476,51 +476,41 @@ def merge_annotations(host_mir_annotations: mirpb.MirAnnotations, guest_mir_anno
     """
     _merge_pair_annotations(host_annotation=host_mir_annotations.prediction,
                             guest_annotation=guest_mir_annotations.prediction,
-                            target_annotation=host_mir_annotations.prediction,
                             strategy=strategy)
     host_mir_annotations.prediction.eval_class_ids.extend(guest_mir_annotations.prediction.eval_class_ids)
 
     _merge_pair_annotations(host_annotation=host_mir_annotations.ground_truth,
                             guest_annotation=guest_mir_annotations.ground_truth,
-                            target_annotation=host_mir_annotations.ground_truth,
                             strategy=strategy)
 
     _merge_annotation_image_cks(host_mir_annotations=host_mir_annotations,
                                 guest_mir_annotations=guest_mir_annotations,
-                                target_mir_annotations=host_mir_annotations,
                                 strategy=strategy)
 
 
 def _merge_pair_annotations(host_annotation: mirpb.SingleTaskAnnotations, guest_annotation: mirpb.SingleTaskAnnotations,
-                            target_annotation: mirpb.SingleTaskAnnotations, strategy: str) -> None:
+                            strategy: str) -> None:
     if (host_annotation.type != mirpb.AnnoType.AT_UNKNOWN and guest_annotation.type != mirpb.AnnoType.AT_UNKNOWN
             and host_annotation.type != guest_annotation.type):
         raise MirRuntimeError(error_code=MirCode.RC_CMD_INVALID_ANNO_TYPE,
                               error_message='host and guest anno type mismatch')
 
-    target_annotation.type = host_annotation.type or guest_annotation.type
+    host_annotation.type = host_annotation.type or guest_annotation.type
 
-    host_only_ids, guest_only_ids, joint_ids = match_asset_ids(set(host_annotation.image_annotations.keys()),
-                                                               set(guest_annotation.image_annotations.keys()))
+    _, guest_only_ids, joint_ids = match_asset_ids(set(host_annotation.image_annotations.keys()),
+                                                   set(guest_annotation.image_annotations.keys()))
 
     if strategy == "stop" and joint_ids:
         raise MirRuntimeError(error_code=MirCode.RC_CMD_MERGE_ERROR,
                               error_message='found conflict annotations in strategy stop')
 
-    for asset_id in host_only_ids:
-        target_annotation.image_annotations[asset_id].CopyFrom(host_annotation.image_annotations[asset_id])
-    for asset_id in guest_only_ids:
-        target_annotation.image_annotations[asset_id].CopyFrom(guest_annotation.image_annotations[asset_id])
-    for asset_id in joint_ids:
-        if strategy.lower() == "host":
-            if asset_id not in target_annotation.image_annotations:
-                target_annotation.image_annotations[asset_id].CopyFrom(host_annotation.image_annotations[asset_id])
-        elif strategy.lower() == "guest":
-            target_annotation.image_annotations[asset_id].CopyFrom(guest_annotation.image_annotations[asset_id])
+    asset_ids = (joint_ids | guest_only_ids) if strategy.lower() == "guest" else guest_only_ids
+    for asset_id in asset_ids:
+        host_annotation.image_annotations[asset_id].CopyFrom(guest_annotation.image_annotations[asset_id])
 
 
 def _merge_annotation_image_cks(host_mir_annotations: mirpb.MirAnnotations, guest_mir_annotations: mirpb.MirAnnotations,
-                                target_mir_annotations: mirpb.MirAnnotations, strategy: str) -> None:
+                                strategy: str) -> None:
     host_only_ids, guest_only_ids, joint_ids = match_asset_ids(set(host_mir_annotations.image_cks.keys()),
                                                                set(guest_mir_annotations.image_cks.keys()))
     if strategy == "stop" and joint_ids:
@@ -528,15 +518,15 @@ def _merge_annotation_image_cks(host_mir_annotations: mirpb.MirAnnotations, gues
                               error_message='found conflict image cks in strategy stop')
 
     for asset_id in host_only_ids:
-        target_mir_annotations.image_cks[asset_id].CopyFrom(host_mir_annotations.image_cks[asset_id])
+        host_mir_annotations.image_cks[asset_id].CopyFrom(host_mir_annotations.image_cks[asset_id])
     for asset_id in guest_only_ids:
-        target_mir_annotations.image_cks[asset_id].CopyFrom(guest_mir_annotations.image_cks[asset_id])
+        host_mir_annotations.image_cks[asset_id].CopyFrom(guest_mir_annotations.image_cks[asset_id])
     for asset_id in joint_ids:
         if strategy.lower() == "host":
-            if asset_id not in target_mir_annotations.image_cks:
-                target_mir_annotations.image_cks[asset_id].CopyFrom(host_mir_annotations.image_cks[asset_id])
+            if asset_id not in host_mir_annotations.image_cks:
+                host_mir_annotations.image_cks[asset_id].CopyFrom(host_mir_annotations.image_cks[asset_id])
         elif strategy.lower() == "guest":
-            target_mir_annotations.image_cks[asset_id].CopyFrom(guest_mir_annotations.image_cks[asset_id])
+            host_mir_annotations.image_cks[asset_id].CopyFrom(guest_mir_annotations.image_cks[asset_id])
 
 
 def match_asset_ids(host_ids: set, guest_ids: set) -> Tuple[set, set, set]:
