@@ -101,6 +101,7 @@ class UserLabels(LabelStorage):
         if not self.storage_file:
             raise RuntimeError("empty storage_file.")
 
+        print(f"labels count before save: {len(self.labels)}")  # for test
         with open(self.storage_file, 'w') as f:
             yaml.safe_dump(self.dict(), f)
 
