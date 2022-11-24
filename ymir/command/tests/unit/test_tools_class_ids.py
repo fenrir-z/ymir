@@ -63,11 +63,7 @@ class TestToolsClassIds(unittest.TestCase):
         cim = load_or_create_userlabels(label_storage_file=self._label_storage_file)
         for nls in new_labelss:
             for nl in nls:
-                try:
-                    self.assertTrue(cim.has_name(nl))
-                except AssertionError as e:
-                    breakpoint()
-                    raise e
+                self.assertTrue(cim.has_name(nl))
 
 
 def _test_rw(args: list) -> None:

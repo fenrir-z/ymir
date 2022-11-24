@@ -75,6 +75,7 @@ class UserLabels(LabelStorage):
             if file_obj is None:
                 file_obj = {}
             values["labels"] = LabelStorage(**file_obj).labels
+            print(f"{os.getpid()}: labels count in _generate_dicts: {len(values['labels'])}")  # for test
 
         name_aliases_to_id: Dict[str, int] = {}
         id_to_name: Dict[int, str] = {}
@@ -93,14 +94,17 @@ class UserLabels(LabelStorage):
         if not (self.storage_file and os.path.isfile(self.storage_file)):
             raise RuntimeError("cannot reload with empty storage_file.")
 
+        print(f"{os.getpid()}: labels count in __reload: {len(self.labels)}, {id(self.labels)}")  # for test, count mismatch here
         *_, validation_error = validate_model(self.__class__, self.__dict__)
         if validation_error:
             raise validation_error
+        print(f"{os.getpid()}: labels count in __reload 2: {len(self.labels)}, {id(self.labels)}")  # for test, count mismatch here
 
     def __save(self) -> None:
         if not self.storage_file:
             raise RuntimeError("empty storage_file.")
 
+        print(f"{os.getpid()}: labels count in save: {len(self.labels)}")  # for test
         with open(self.storage_file, 'w') as f:
             yaml.safe_dump(self.dict(), f)
 
@@ -209,7 +213,7 @@ class UserLabels(LabelStorage):
             for main_name in main_names:
                 added_class_id, main_name = self._add_new_cname(name=main_name)
                 ret_val.append((added_class_id, main_name))
-                print(f"main name: {main_name}, id: {added_class_id}")  # for test
+                print(f"{os.getpid()}: main name: {main_name}, id: {added_class_id}")  # for test
             self.__save()
         return ret_val
 
