@@ -13,12 +13,13 @@ type Props = {
   checkedDefault?: boolean
 }
 
-const CheckboxSelector: React.FC<Props> = ({ options = [], label = '', value, onChange, checkedDefault = true, vertical, labelAlign = 'left', ...rest }) => {
-  const [checkeds, setCheckeds] = useState<CheckboxValueType[]>(checkedDefault ? options.map((opt) => opt.value) : [])
+const CheckboxSelector: React.FC<Props> = ({ options, label = '', value, onChange, checkedDefault = true, vertical, labelAlign = 'left', ...rest }) => {
+  const all = options.map((opt) => opt.value) || []
+  const [checkeds, setCheckeds] = useState<CheckboxValueType[]>(checkedDefault ? all : [])
 
   useEffect(() => value && setCheckeds(value), [value])
 
-  useEffect(() => onChange && onChange(checkeds), [checkeds])
+  useEffect(() => onChange && onChange(checkeds, checkeds.length === all.length), [checkeds])
 
   return (
     <Row gutter={20} {...rest}>
