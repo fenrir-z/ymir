@@ -105,6 +105,9 @@ type MirObjectAnnotation struct {
 	ClassName   string            `json:"class_name"   bson:"class_name"`
 	Polygon     []*MirIntPoint    `json:"polygon"      bson:"polygon"`
 	Mask        string            `json:"mask"         bson:"mask"`
+	IsCrowd     int32             `json:"is_crowd"     bson:"is_crowd"`
+	Type        int32             `json:"type"         bson:"type"`
+	MaskArea    int32             `json:"mask_area"    bson:"mask_area"`
 }
 
 func NewMirObjectAnnotation() MirObjectAnnotation {
@@ -114,6 +117,7 @@ func NewMirObjectAnnotation() MirObjectAnnotation {
 type DatasetStatsElement struct {
 	// Assets count
 	ClassIDsCount       map[int]int64 `json:"class_ids_count"`
+	ClassObjCount       map[int]int64 `json:"class_obj_count"`
 	NegativeAssetsCount int64         `json:"negative_assets_count"`
 	PositiveAssetsCount int64         `json:"positive_assets_count"`
 
