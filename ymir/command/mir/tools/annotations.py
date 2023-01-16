@@ -64,10 +64,12 @@ def _annotation_parse_func(anno_type: "mirpb.ObjectType.V") -> Callable:
     return _func_dict[anno_type]
 
 
-def _voc_object_dict_to_annotation(object_dict: dict, cid: int) -> mirpb.ObjectAnnotation:
+def _voc_object_dict_to_annotation(object_dict: dict, cid: int,
+                                   class_type_manager: class_ids.UserLabels) -> mirpb.ObjectAnnotation:
     # Fill shared fields.
     annotation = mirpb.ObjectAnnotation()
     annotation.class_id = cid
+    annotation.class_name = class_type_manager.main_name_for_id(cid)
     annotation.score = float(object_dict.get('confidence', '-1.0'))
     annotation.anno_quality = float(object_dict.get('box_quality', '-1.0'))
     tags = object_dict.get('tags', {})  # tags could be None
@@ -239,7 +241,9 @@ def _import_annotations_voc_xml(file_name_to_asset_ids: Dict[str, str], mir_anno
                     accu_new_class_names[new_type_name] = 0
 
             if cid >= 0:
-                annotation = _voc_object_dict_to_annotation(object_dict, cid)
+                annotation = _voc_object_dict_to_annotation(object_dict=object_dict,
+                                                            cid=cid,
+                                                            class_type_manager=class_type_manager)
                 annotation.index = anno_idx
                 image_annotations.image_annotations[asset_hash].boxes.append(annotation)
                 anno_idx += 1
@@ -277,7 +281,7 @@ def import_annotations_coco_json(file_name_to_asset_ids: Dict[str, str], mir_ann
     # images_list -> image_id_to_hashes (key: coco image id, value: ymir asset hash)
     image_id_to_hashes: Dict[int, str] = {}
     for v in images_list:
-        filename = v['file_name']
+        filename = os.path.basename(v['file_name'])  # file_name may contains path
         if filename not in file_name_to_asset_ids:
             unhashed_filenames_cnt += 1
             continue
@@ -559,3 +563,10 @@ def match_asset_ids(host_ids: set, guest_ids: set) -> Tuple[set, set, set]:
     """
     insets = host_ids & guest_ids
     return (host_ids - insets, guest_ids - insets, insets)
+
+
+def make_empty_mir_annotations() -> mirpb.MirAnnotations:
+    mir_annotations = mirpb.MirAnnotations()
+    mir_annotations.prediction.type = mirpb.ObjectType.OT_NO_ANNOTATIONS
+    mir_annotations.ground_truth.type = mirpb.ObjectType.OT_NO_ANNOTATIONS
+    return mir_annotations

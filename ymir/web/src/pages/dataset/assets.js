@@ -5,34 +5,45 @@ import { Select, Pagination, Row, Col, Button, Space, Card, Tag, Modal, Popover 
 import t from '@/utils/t'
 import useFetch from '@/hooks/useFetch'
 import { randomBetween, percent } from '@/utils/number'
+import { getProjectTypeLabel } from '@/constants/project'
 
 import Breadcrumbs from '@/components/common/breadcrumb'
 import Asset from './components/asset'
 import styles from './assets.less'
 import GtSelector from '@/components/form/GtSelector'
-import ImageAnnotation from '@/components/dataset/imageAnnotation'
+import ListAnnotation from '@/components/dataset/ListAnnotation'
 import useWindowResize from '@/hooks/useWindowResize'
-import KeywordSelector from './components/keywordSelector'
+import KeywordSelector from '@/components/form/KeywordFilter'
 import EvaluationSelector from '@/components/form/EvaluationSelector'
 import VersionName from '@/components/result/VersionName'
 import CustomLabels from '@/components/dataset/asset/CustomLabels'
 
 const { Option } = Select
 
-const paramsHandle = (params) =>
-  Object.keys(params).reduce(
-    (prev, key) => ({
-      ...prev,
-      [key]: params[key + 'all'] ? [] : params[key],
-    }),
-    {},
-  )
+const paramsHandle = (params) => {
+  const mergeKeywords = (params) => {
+    const kws = params.keywords?.map((item) => (Array.isArray(item) ? item.join(':') : item))
+    return {
+      ...params,
+      keywords: kws,
+    }
+  }
+  const addAll = (params) =>
+    Object.keys(params).reduce(
+      (prev, key) => ({
+        ...prev,
+        [key]: params[key + 'all'] ? [] : params[key],
+      }),
+      {},
+    )
+  return addAll(mergeKeywords(params))
+}
 
 const Dataset = () => {
   const { id: pid, did: id } = useParams()
   const initQuery = {
     id,
-    keywords: [],
+    // keywords: [],
     offset: 0,
     limit: 20,
   }
@@ -58,15 +69,15 @@ const Dataset = () => {
   }, [dataset, filterParams])
 
   const filterKw = ({ type, selected }) => {
-    const s = selected.map((item) => (Array.isArray(item) ? item.join(':') : item))
-    if (s.length || (!s.length && filterParams.keywords.length > 0)) {
-      setFilterParams((params) => ({
-        ...params,
-        type,
-        keywords: s,
-        offset: initQuery.offset,
-      }))
+    if (!selected.length && !filterParams.keywords?.length) {
+      return
     }
+    setFilterParams((params) => ({
+      ...params,
+      type,
+      keywords: selected,
+      offset: initQuery.offset,
+    }))
   }
 
   const filterPage = (page, pageSize) => {
@@ -115,7 +126,7 @@ const Dataset = () => {
   }
 
   const reset = () => {
-    setFilterParams(initQuery)
+    setFilterParams({...initQuery, keywords: []})
   }
 
   const randomPageButton = (
@@ -160,10 +171,10 @@ const Dataset = () => {
         return (
           <Row gutter={4} wrap={false} key={index} className={styles.dataset_container}>
             {rows.map((asset, rowIndex) => (
-              <Col style={{ height: h }} key={rowIndex} className={styles.dataset_item}>
+              <Col style={{ height: h }} key={asset.hash} className={styles.dataset_item}>
                 <CkPopup asset={asset}>
                   <div className={styles.dataset_img} onClick={() => goAsset(asset, asset.hash, index * row + rowIndex)}>
-                    <ImageAnnotation url={asset.url} data={asset.annotations} filters={filterAnnotations} />
+                    <ListAnnotation asset={asset} filter={filterAnnotations} />
                     <span className={styles.item_keywords_count} title={asset?.keywords.join(',')}>
                       {t('dataset.detail.assets.keywords.total', {
                         total: asset?.keywords?.length,
@@ -200,6 +211,9 @@ const Dataset = () => {
             <VersionName result={dataset} />
           </strong>
           <span>{t('dataset.detail.pager.total', { total: total + '/' + dataset.assetCount })}</span>
+          <span>
+            {t('common.object.type')}: {t(getProjectTypeLabel(dataset.type, true))}
+          </span>
           {dataset?.inferClass ? (
             <div>
               {t('dataset.detail.infer.class')}

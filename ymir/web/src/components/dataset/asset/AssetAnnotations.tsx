@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, FC } from 'react'
+import { useEffect, useState, useRef, FC, SyntheticEvent } from 'react'
 
 import { AnnotationType } from '@/constants/dataset'
 import { transferAnnotations } from './_helper'
@@ -18,6 +18,7 @@ const AssetAnnotation: FC<Props> = ({ asset }) => {
   const imgContainer = useRef<HTMLDivElement>(null)
   const img = useRef<HTMLImageElement>(null)
   const [width, setWidth] = useState(0)
+  const [imgNaturalHeight, setImgNaturalHeight] = useState(0)
   const [imgWidth, setImgWidth] = useState(0)
   const [ratio, setRatio] = useState(1)
 
@@ -25,17 +26,24 @@ const AssetAnnotation: FC<Props> = ({ asset }) => {
     if (!asset) {
       return
     }
-    const updateAnnotations = transferAnnotations(asset.annotations, asset)
-    setAnnotations(updateAnnotations)
+    setAnnotations(transferAnnotations(asset.annotations))
   }, [asset])
 
-  function calClientWidth() {
+  useEffect(() => {
+    let annos = annotations
+    if (annotations.length && !asset?.height && imgNaturalHeight) {
+      annos = annos.map((anno) => ({ ...anno, height: imgNaturalHeight }))
+      setAnnotations(annotations)
+    }
+  }, [asset, annotations, imgNaturalHeight])
+
+  function calClientWidth(imgWidth?: number) {
     const { current } = imgContainer
     const cw = current?.clientWidth || 0
-    const iw = asset?.width || 0
+    const iw = asset?.width || width || imgWidth || 0
     const clientWidth = iw > cw ? cw : iw
     setImgWidth(clientWidth)
-    setWidth(cw)
+    setWidth(iw)
     setRatio(clientWidth / iw)
   }
 
@@ -50,6 +58,14 @@ const AssetAnnotation: FC<Props> = ({ asset }) => {
     }
   }
 
+  const imgLoad = (e: SyntheticEvent) => {
+    if (img.current && img.current.naturalWidth) {
+      const { naturalHeight, naturalWidth } = img.current
+      calClientWidth(naturalWidth)
+      setImgNaturalHeight(naturalHeight)
+    }
+  }
+
   window.addEventListener('resize', () => {
     if (imgContainer.current) {
       calClientWidth()
@@ -59,7 +75,7 @@ const AssetAnnotation: FC<Props> = ({ asset }) => {
   return (
     <div className={styles.anno_panel} ref={imgContainer} key={asset?.hash}>
       <div className={styles.img_container}>
-        <img ref={img} src={asset?.url} style={imgWidth ? { width: imgWidth } : undefined} className={styles.assetImg} onLoad={calClientWidth} />
+        <img ref={img} src={asset?.url} style={imgWidth ? { width: imgWidth } : undefined} className={styles.assetImg} onLoad={imgLoad} />
       </div>
       <div className={styles.annotations} style={{ width: imgWidth, left: -imgWidth / 2 }}>
         {annotations.map(renderAnnotation)}

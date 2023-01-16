@@ -28,7 +28,7 @@ declare namespace YModels {
     id: number
     groupId: number
     projectId: number
-    type: number
+    type: ObjectType
     name: string
     versionName: string
     version: number
@@ -62,7 +62,15 @@ declare namespace YModels {
     [key: string]: number
   }
   type CK = {
-    [key: string]: any
+    [key: string]: string | number
+  }
+  type CKCount = { [key: string]: number }
+  type CKItem = {keyword: string, count: number, children?: CKItem[]}
+  type CKCounts = {
+    keywords: CKItem[]
+    counts: CKCount
+    subKeywordsTotal: number
+    total: CKCount
   }
   type AnnotationsCount = {
     count: Keywords
@@ -71,13 +79,11 @@ declare namespace YModels {
     total: number
   }
   type AnylysisAnnotation = {
-    keywords: Labels
+    keywords: Keywords
     total: number
     average: number
     negative: number
     totalArea: number
-    totalInstanceCount: number
-    area: Array<BackendData>
     quality: Array<BackendData>
     areaRatio: Array<BackendData>
     keywordAnnotaitionCount: Array<BackendData>
@@ -97,8 +103,8 @@ declare namespace YModels {
     gt?: AnnotationsCount
     pred?: AnnotationsCount
     inferClass?: Array<string>
-    cks?: BackendData
-    tags?: BackendData
+    cks?: CKCounts
+    tags?: CKCounts
   }
 
   export interface InferDataset extends Dataset {
@@ -141,7 +147,7 @@ declare namespace YModels {
     width: number
     height: number
     color?: string
-    score?: number | string
+    score?: number
     gt?: boolean
     cm: number
     tags?: CK
@@ -195,15 +201,11 @@ declare namespace YModels {
   export interface Stage {
     id: number
     name: string
-    map: number
+    primaryMetric: number
+    primaryMetricLabel?: string
     modelId?: number
     modelName?: string
-    metrics?: {
-      ar?: number
-      fn?: number
-      fp?: number
-      tp?: number
-    }
+    metrics?: StageMetrics
   }
   export interface ModelGroup extends Group {}
   export interface Model<P = TaskParams> extends Result<P> {
@@ -212,6 +214,27 @@ declare namespace YModels {
     stages?: Array<Stage>
     recommendStage: number
   }
+  type BaseStageMetrics = {
+    primary: number
+    tp?: number
+    fp?: number
+    fn?: number
+  }
+  interface DetectionStageMetrics extends BaseStageMetrics {
+    ap: number
+    ar?: number
+  }
+  interface SemanticStageMetrics extends BaseStageMetrics {
+    iou: number
+    acc?: number
+  }
+  interface InstanceStageMetrics extends BaseStageMetrics {
+    maskAP: number
+    boxAP?: number
+  }
+
+  export type StageMetrics = DetectionStageMetrics | SemanticStageMetrics | InstanceStageMetrics
+
   export interface Project {
     id: number
     name: string
@@ -283,6 +306,7 @@ declare namespace YModels {
     testSet: DatasetId
     wholeMiningSet: DatasetId
     prevIteration?: number
+    model?: Model
     end: boolean
   }
 

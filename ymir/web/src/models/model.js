@@ -15,7 +15,8 @@ import {
   updateVersion,
 } from '@/services/model'
 import { getStats } from '../services/common'
-import { transferModelGroup, transferModel, getModelStateFromTask, states, transferStage } from '@/constants/model'
+import { transferModelGroup, transferModel, transferStage } from '@/constants/model'
+import { ResultStates as states } from '@/constants/common'
 import { toAnnotation } from '@/constants/dataset'
 import { actions, updateResultState, updateResultByTask } from '@/constants/common'
 import { deepClone } from '@/utils/object'
@@ -243,8 +244,7 @@ export default {
     *verify({ payload }, { call }) {
       const { code, result } = yield call(verify, payload)
       if (code === 0) {
-        // todo update for annotation structure
-        return result.annotations[0]?.detection?.map(toAnnotation)
+        return result.annotations[0]?.annotations?.map(toAnnotation)
       }
     },
     *batchModelStages({ payload }, { call, put }) {

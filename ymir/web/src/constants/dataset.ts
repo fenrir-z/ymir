@@ -1,6 +1,7 @@
 import { getLocale } from 'umi'
 import { calDuration, format } from '@/utils/date'
 import { getVersionLabel } from './common'
+import { ObjectType } from './project'
 
 export enum AnnotationType {
   BoundingBox = 0,
@@ -86,7 +87,7 @@ export function transferDataset(data: YModels.BackendData): YModels.Dataset {
     id: data.id,
     groupId: data.dataset_group_id,
     projectId: data.project_id,
-    type: data.object_type || 1,
+    type: data.object_type || ObjectType.ObjectDetection,
     name: data.group_name,
     version: data.version_num || 0,
     versionName: getVersionLabel(data.version_num),
@@ -165,10 +166,10 @@ export function transferDatasetAnalysis(data: YModels.BackendData): YModels.Data
 export function transferAsset(data: YModels.BackendData, keywords: Array<string>): YModels.Asset {
   const { width, height } = data?.metadata || {}
   const colors = generateDatasetColors(keywords || data.keywords)
-  const transferAnnotations = (annotations = [], gt = false) =>
-    annotations.map((an: YModels.BackendData) => toAnnotation(an, width, height, gt, colors[an.keyword]))
+  const transferAnnotations = (annotations = [], pred = false) =>
+    annotations.map((an: YModels.BackendData) => toAnnotation(an, width, height, pred, colors[an.keyword]))
 
-  const annotations = [...transferAnnotations(data.gt, true), ...transferAnnotations(data.pred)]
+  const annotations = [...transferAnnotations(data.gt), ...transferAnnotations(data.pred, true)]
   const evaluated = annotations.some((annotation) => evaluationTags[annotation.cm])
 
   return {
@@ -187,16 +188,16 @@ export function transferAsset(data: YModels.BackendData, keywords: Array<string>
   }
 }
 
-export function toAnnotation(annotation: YModels.BackendData, width: number = 0, height: number = 0, gt = false, color = ''): YModels.Annotation {
+export function toAnnotation(annotation: YModels.BackendData, width: number = 0, height: number = 0, pred = false, color = ''): YModels.Annotation {
   return {
     keyword: annotation.keyword || '',
     width,
     height,
     cm: annotation.cm,
-    gt,
+    gt: !pred,
     tags: annotation.tags || {},
     color,
-    ...annotationTransfer({ ...annotation, type: getType(annotation)}),
+    ...annotationTransfer({ ...annotation, type: getType(annotation) }),
   }
 }
 
@@ -246,22 +247,23 @@ export function transferAnnotationsCount(count = {}, negative = 0, total = 1) {
 }
 
 function getType(annotation: YModels.BackendData) {
-  return annotation?.mask ? AnnotationType.Mask : (annotation?.polygon?.length ? AnnotationType.Polygon : AnnotationType.BoundingBox)
+  return annotation?.mask ? AnnotationType.Mask : annotation?.polygon?.length ? AnnotationType.Polygon : AnnotationType.BoundingBox
 }
 
-const transferCK = (counts: YModels.BackendData = {}, total: YModels.BackendData = {}) => {
+const transferCK = (counts: YModels.BackendData = {}, total: YModels.BackendData = {}): YModels.CKCounts => {
   let subKeywordsTotal = 0
-  const keywords = Object.keys(counts).map((keyword) => {
-    const children = counts[keyword]
+  const keywords = Object.keys(counts).map((keyword: string) => {
+    const children: {[key: string]: number} = counts[keyword]
     const subList = Object.keys(children)
+    const count: number = total[keyword]
     subKeywordsTotal += subList.length
     return {
       keyword,
-      children: subList.map((child) => ({
+      children: subList.map((child: string) => ({
         keyword: child,
-        count: children[child],
+        count: children[child] || 0,
       })),
-      count: total[keyword],
+      count: count || 0,
     }
   })
   return {
@@ -273,21 +275,19 @@ const transferCK = (counts: YModels.BackendData = {}, total: YModels.BackendData
 }
 
 const generateAnno = (data: YModels.BackendData): YModels.AnylysisAnnotation => {
-  const { quality = [], area = [], area_ratio = [], instance_area =[], crowdedness = [] } = data.hist
+  const { quality = [], area = [], box_area_ratio = [], mask_area = [], obj_counts = [] } = data.hist
   return {
     keywords: data.keywords,
     total: data.annos_count || 0,
     average: data.ave_annos_count || 0,
     negative: data.negative_assets_count || 0,
     quality: quality || [],
-    area: area || [],
-    areaRatio: area_ratio || [],
-    keywordAnnotaitionCount: data.classwise_instance_count || [],
-    totalArea: data.total_area,
-    keywordArea: data.classwise_area || [],
-    instanceArea: instance_area,
-    crowdedness,
-    totalInstanceCount: data.total_instance_count || 0,
+    areaRatio: box_area_ratio || [],
+    keywordAnnotaitionCount: data.classwise_annos_count || {},
+    totalArea: data.total_mask_area || 0,
+    keywordArea: data.classwise_area || {},
+    instanceArea: mask_area,
+    crowdedness: obj_counts,
   }
 }
 
