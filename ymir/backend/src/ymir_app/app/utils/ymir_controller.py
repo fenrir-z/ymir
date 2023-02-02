@@ -9,12 +9,14 @@ from fastapi.logger import logger
 from google.protobuf.json_format import MessageToDict
 from google.protobuf.text_format import MessageToString
 
+from app.api.errors.errors import FailedtoCreateSegLabelTask
 from app.config import settings
 from app.constants.state import TaskType, AnnotationType, DatasetType, ObjectType
 from app.schemas.common import ImportStrategy, MergeStrategy
 from app.schemas.task import TrainingDatasetsStrategy
 from common_utils.labels import UserLabels, userlabels_to_proto
 from id_definition.task_id import TaskId
+from id_definition.error_codes import CTLResponseCode as controller_error_code
 from mir.protos import mir_command_pb2 as mir_cmd_pb
 from proto import backend_pb2 as mirsvrpb
 from proto import backend_pb2_grpc as mir_grpc
@@ -197,7 +199,11 @@ class ControllerRequest:
         label_request = mirsvrpb.TaskReqLabeling()
         label_request.project_name = f"label_{dataset['name']}"
         label_request.labeler_accounts[:] = args["labellers"]
+
+        # ad hoc: controller's object_type has no instance_segmentation
         label_request.object_type = OBJECT_TYPE_MAPPING[args["object_type"]]
+        if args["object_type"] == ObjectType.instance_segmentation:
+            label_request.is_instance_segmentation = True
 
         # pre annotation
         if args.get("annotation_type"):
@@ -338,6 +344,7 @@ class ControllerRequest:
         evaluate_config.conf_thr = args["confidence_threshold"]
         evaluate_config.iou_thrs_interval = args["iou_thrs_interval"]
         evaluate_config.need_pr_curve = args["need_pr_curve"]
+        evaluate_config.is_instance_segmentation = args["is_instance_segmentation"]
         if args.get("main_ck"):
             evaluate_config.main_ck = args["main_ck"]
 
@@ -366,18 +373,24 @@ class ControllerClient:
     def close(self) -> None:
         pass
 
+    def check_response_code(self, resp_code: int, resp_msg: Optional[str], verbose: bool = True) -> None:
+        if resp_code == controller_error_code.INVOKER_LABEL_TASK_SEG_NOT_SUPPORTED:
+            raise FailedtoCreateSegLabelTask()
+        elif resp_code != 0:
+            raise ValueError(f"gRPC error. response: {resp_code} {resp_msg}")
+
     def send(self, req: mirsvrpb.GeneralReq, verbose: bool = True) -> Dict:
         logger.info("[controller] request: %s", req.req)
         with grpc.insecure_channel(self.channel_ep) as channel:
             stub = mir_grpc.mir_controller_serviceStub(channel)
             resp = stub.data_manage_request(req.req)
+        self.check_response_code(resp.code, resp.message, verbose)
 
-        if resp.code != 0:
-            raise ValueError(f"gRPC error. response: {resp.code} {resp.message}")
         msg = "[controller] successfully get response"
         if verbose:
             msg = "%s: %s" % (msg, MessageToString(resp, as_one_line=True))
         logger.info(msg)
+
         return MessageToDict(
             resp,
             preserving_proto_field_name=True,
@@ -523,6 +536,7 @@ class ControllerClient:
         need_pr_curve: bool,
         main_ck: Optional[str],
         dataset_hash: str,
+        is_instance_segmentation: bool = False,
     ) -> Dict:
         req = ControllerRequest(
             type=ExtraRequestType.evaluate,
@@ -534,6 +548,7 @@ class ControllerClient:
                 "iou_thrs_interval": iou_thrs_interval,
                 "need_pr_curve": need_pr_curve,
                 "main_ck": main_ck,
+                "is_instance_segmentation": is_instance_segmentation,
             },
         )
         try:

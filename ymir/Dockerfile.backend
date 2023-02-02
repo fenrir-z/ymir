@@ -14,7 +14,16 @@ COPY ./backend/src/ymir_hel/ /ymir_hel
 WORKDIR /ymir_hel
 RUN go build -mod=readonly -v -o hel_server
 
-FROM ubuntu:20.04
+
+FROM python:3.8-slim AS coco-compile
+RUN apt-get update && apt-get install -y git gcc build-essential \
+  && git clone https://github.com/ppwwyyxx/cocoapi \
+  && cd cocoapi \
+  && pip install build \
+  && python -m build -w ./PythonAPI -o /
+
+
+FROM python:3.8-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -22,25 +31,23 @@ ENV DEBIAN_FRONTEND=noninteractive
 ARG PIP_SOURCE=https://pypi.org/simple
 
 RUN apt-get update \
-  && apt-get install -y curl git vim gcc \
-  && apt-get install -y --no-install-recommends python3-pip python3-dev mysql-client \
+  && apt-get install -y --no-install-recommends curl git default-mysql-client \
   && apt-get clean \
-  && rm -rf /var/lib/apt/lists/* \
-  && cd /usr/local/bin \
-  && ln -s /usr/bin/python3 python \
-  && pip3 install -i ${PIP_SOURCE} --upgrade pip
+  && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /data/sharing/
-RUN mkdir -p /app_logs/
+RUN mkdir -p /data/sharing/ /app_logs/
 
 COPY ./backend/requirements.txt ./backend-requirements.txt
-RUN pip3 install -r backend-requirements.txt -i ${PIP_SOURCE}
+RUN pip install -r backend-requirements.txt -i ${PIP_SOURCE}
 
 COPY ./command/requirements.txt ./command-requirements.txt
-RUN pip3 install -r command-requirements.txt -i ${PIP_SOURCE}
+RUN pip install -r command-requirements.txt -i ${PIP_SOURCE}
 
 COPY ./command /command
-RUN pip3 install -U /command -i ${PIP_SOURCE}
+RUN pip install -U /command -i ${PIP_SOURCE}
+
+COPY --from=coco-compile /pycocotools-2.0.6-cp38-cp38-linux_x86_64.whl .
+RUN pip install /pycocotools-2.0.6-cp38-cp38-linux_x86_64.whl -i ${PIP_SOURCE} --no-dependencies
 
 COPY ./backend/src /app
 

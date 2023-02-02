@@ -83,9 +83,19 @@ class FailedtoCreateTask(ControllerError):
     message = "Failed to Create Task via Controller"
 
 
+class FailedtoCreateSegLabelTask(ControllerError):
+    code = error_codes.TASK_SEGMENTATION_LABEL_NOT_SUPPORTED
+    message = "Failed to Create Segmentation Label Task"
+
+
 class FailedToCallInference(ControllerError):
     code = error_codes.INFERENCE_FAILED_TO_CALL
     message = "Failed to Create Task via Controller"
+
+
+class FailedToTerminateTask(ControllerError):
+    code = error_codes.TASK_FAILED_TO_TERMINATE
+    message = "Failed to Terminate Task via Controller"
 
 
 class InvalidInferenceConfig(APIError):
@@ -274,21 +284,6 @@ class DuplicateKeywordError(DuplicateError):
 class DuplicateDockerImageError(DuplicateError):
     code = error_codes.DOCKER_IMAGE_DUPLICATED
     message = "Duplicated Docker Image"
-
-
-class FailedtoShareDockerImage(APIError):
-    code = error_codes.FAILED_TO_SHARE_DOCKER_IMAGE
-    message = "Failed to Share Docker Image"
-
-
-class FailedtoGetSharedDockerImages(APIError):
-    code = error_codes.FAILED_TO_GET_SHARED_DOCKER_IMAGES
-    message = "Failed to Share Docker Image"
-
-
-class InvalidSharedImageConfig(APIError):
-    code = error_codes.SHARED_IMAGE_CONFIG_ERROR
-    message = "Invalid Shared Image Config"
 
 
 class DockerImageHavingRelationships(APIError):
