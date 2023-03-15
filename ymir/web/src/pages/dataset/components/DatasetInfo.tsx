@@ -6,15 +6,17 @@ import t from '@/utils/t'
 import ObjectTypeTag from '@/components/project/ObjectTypeTag'
 import VersionName from '@/components/result/VersionName'
 
-const DatasetInfo: FC<{ dataset?: YModels.Dataset, pred?: boolean }> = ({ dataset, pred }) => {
+const DatasetInfo: FC<{ dataset?: YModels.Dataset | YModels.Prediction; pred?: boolean }> = ({ dataset, pred }) => {
   return dataset ? (
     <Space wrap={true}>
-      <strong>
-        <VersionName result={dataset} />
-      </strong>
+      {!pred ? (
+        <strong>
+          <VersionName result={dataset} />
+        </strong>
+      ) : null}
       <span>{t('dataset.detail.pager.total', { total: dataset.assetCount })}</span>
       <ObjectTypeTag type={dataset.type} />
-      {pred && dataset.inferClass ? (
+      {pred && dataset?.inferClass ? (
         <div>
           {t('dataset.detail.infer.class')}
           {dataset?.inferClass?.map((cls) => (

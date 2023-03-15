@@ -7,43 +7,46 @@ import useFetch from '@/hooks/useFetch'
 import t from '@/utils/t'
 import { INFER_CLASSES_MAX_COUNT, INFER_DATASET_MAX_COUNT, updateResultByTask } from '@/constants/common'
 
-import { getInferDatasetColumns } from '@/components/table/Columns'
+import { getPredictionColumns } from '@/components/table/Columns'
 import Actions from '@/components/table/Actions'
 import Hide, { RefProps } from '@/components/common/hide'
 
 import s from './index.less'
 import { EyeOnIcon, DiagnosisIcon, DeleteIcon } from '@/components/common/Icons'
 import { validDataset } from '@/constants/dataset'
+import MetricsModal from './components/MetricsModal'
 
 const initQuery = { current: 1, offset: 0, limit: 20 }
 
-const InferDataset: React.FC = () => {
+const Predictions: React.FC = () => {
   const { id: pid } = useParams<{ id?: string }>()
   const history = useHistory()
-  const [datasets, setDatasets] = useState<YModels.InferDataset[]>([])
+  const [predictions, setPredictions] = useState<YModels.Prediction[]>([])
   const [query, setQuery] = useState(initQuery)
   const hideRef = useRef<RefProps>(null)
-  const [{ items, total }, getDatasets] = useFetch('dataset/queryInferDatasets', { items: [], total: 0 })
-  const cols = getInferDatasetColumns(datasets[0]?.type)
+  const [{ items, total }, getPredictions] = useFetch('prediction/getPredictions', { items: [], total: 0 })
+  const cols = getPredictionColumns(predictions[0]?.type)
+  const [currentPrediction, setCurrentPrediction] = useState<YModels.Prediction>()
+  const [metricsModalVisible, setMModalVisible] = useState(false)
   const cacheDatasets = useSelector<YStates.Root, YStates.IdMap<YModels.Dataset>>((state) => state.dataset.dataset)
   const cacheModels = useSelector<YStates.Root, YStates.IdMap<YModels.Model>>((state) => state.model.model)
   const progressTasks = useSelector<YStates.Root, YModels.ProgressTask[]>(({ socket }) => socket.tasks)
-  const actions = (record: YModels.InferDataset): YComponents.Action[] => [
+  const actions = (record: YModels.Prediction): YComponents.Action[] => [
     {
       key: 'diagnose',
       label: t('common.action.diagnose'),
-      onclick: () =>
-        history.push(`/home/project/${pid}/diagnose#metrics`, {
-          mid: record.inferModelId,
-        }),
-      disabled: !validDataset(record) || (record.assetCount > INFER_DATASET_MAX_COUNT || (record.inferModel?.keywords?.length || 0) > INFER_CLASSES_MAX_COUNT),
+      onclick: () => popupModal(record),
+        // history.push(`/home/project/${pid}/diagnose#metrics`, {
+        //   mid: record.inferModelId,
+        // }),
+      disabled: !validDataset(record) || record.assetCount > INFER_DATASET_MAX_COUNT || (record.inferModel?.keywords?.length || 0) > INFER_CLASSES_MAX_COUNT,
       icon: <DiagnosisIcon />,
     },
     {
       key: 'preview',
       label: t('common.action.preview'),
       hidden: () => !validDataset(record),
-      onclick: () => history.push(`/home/project/${pid}/dataset/${record.id}/assets#pred`),
+      onclick: () => history.push(`/home/project/${pid}/prediction/${record.id}#pred`),
       icon: <EyeOnIcon />,
     },
     {
@@ -53,7 +56,7 @@ const InferDataset: React.FC = () => {
       icon: <DeleteIcon />,
     },
   ]
-  const actionCol: TableColumnsType<YModels.InferDataset> = [
+  const actionCol: TableColumnsType<YModels.Prediction> = [
     {
       dataIndex: 'action',
       title: t('common.action'),
@@ -62,38 +65,43 @@ const InferDataset: React.FC = () => {
   ]
   const columns = [...cols, ...actionCol]
 
-  useEffect(() => pid && fetchInferDatasets(), [pid, query])
+  useEffect(() => pid && fetchPredictions(), [pid, query])
 
   useEffect(() => {
-    if (datasets.length && progressTasks.length) {
+    if (predictions.length && progressTasks.length) {
       const needReload = progressTasks.some(({ reload }) => reload)
       if (needReload) {
-        fetchInferDatasets()
+        fetchPredictions()
       } else {
-        const updatedDatasets = datasets.map((dataset) => {
+        const updatedDatasets = predictions.map((dataset) => {
           const ds = updateResultByTask<typeof dataset>(
             dataset,
             progressTasks.find((task) => task.hash === dataset.task.hash),
           )
           return ds ? ds : dataset
         })
-        setDatasets(updatedDatasets)
+        setPredictions(updatedDatasets)
       }
     }
   }, [progressTasks])
 
-  useEffect(() => setDatasets(items), [items])
+  useEffect(() => items && setPredictions(items), [items])
 
   useEffect(() => {
-    setDatasets((datasets) =>
-      datasets.map((dataset) => {
-        const { inferDatasetId, inferModelId } = dataset
-        const inferModel = inferModelId[0] ? cacheModels[inferModelId[0]] : undefined
+    setPredictions((predictions) =>
+      predictions.map((prediction) => {
+        const { inferDatasetId, inferModelId } = prediction
+        const inferModel = inferModelId[0] ? cacheModels[inferModelId[0]]: undefined
         const inferDataset = inferDatasetId ? cacheDatasets[inferDatasetId] : undefined
-        return { ...dataset, inferModel, inferDataset }
+        return { ...prediction, inferModel, inferDataset }
       }),
     )
   }, [cacheDatasets, cacheModels, items])
+
+  const popupModal = (prediction: YModels.Prediction) => {
+    setCurrentPrediction(prediction)
+    setMModalVisible(true)
+  }
 
   function pageChange(current: number, size: number) {
     const limit = size
@@ -101,11 +109,11 @@ const InferDataset: React.FC = () => {
     setQuery((query) => ({ ...query, current, limit, offset }))
   }
 
-  function fetchInferDatasets() {
-    return getDatasets({ pid, ...query })
+  function fetchPredictions() {
+    return getPredictions({ pid, ...query })
   }
 
-  const hide = (dataset: YModels.InferDataset) => {
+  const hide = (dataset: YModels.Prediction) => {
     hideRef?.current?.hide([dataset])
   }
 
@@ -113,8 +121,9 @@ const InferDataset: React.FC = () => {
     <div className={s.inferDataset}>
       <Table
         columns={columns}
-        dataSource={datasets}
+        dataSource={predictions}
         rowKey={(record) => record.id}
+        rowClassName={(record, index) => (index % 2 === 0 ? '' : 'oddRow')}
         pagination={{
           onChange: pageChange,
           current: query.current,
@@ -124,9 +133,10 @@ const InferDataset: React.FC = () => {
           showSizeChanger: true,
         }}
       />
-      <Hide ref={hideRef} ok={fetchInferDatasets} msg="pred.action.del.confirm.content" />
+      <Hide ref={hideRef} type='prediction' ok={fetchPredictions} msg="pred.action.del.confirm.content" />
+      <MetricsModal width={'90%'} prediction={currentPrediction} visible={metricsModalVisible} onCancel={() => setMModalVisible(false)} footer={null} />
     </div>
   )
 }
 
-export default InferDataset
+export default Predictions
