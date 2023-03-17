@@ -1,9 +1,10 @@
 from datetime import datetime
 from enum import IntEnum
+import re
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, EmailStr, validator, constr
 
 from auth.schemas.common import (
     Common,
@@ -11,6 +12,9 @@ from auth.schemas.common import (
     IdModelMixin,
     IsDeletedModelMixin,
 )
+
+
+PHONE_NUMBER_PATTERN = re.compile(r"^\+?\d{5,18}$")
 
 
 class UserState(IntEnum):
@@ -39,8 +43,17 @@ class UserBase(BaseModel):
 
 # Properties to receive via API on creation
 class UserCreate(UserBase):
-    email: EmailStr
+    username: Optional[constr(min_length=2, max_length=15, strip_whitespace=True)] = None
+    phone: Optional[str] = None
     password: str
+
+    @validator("phone")
+    def check_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        if not PHONE_NUMBER_PATTERN.match(v):
+            raise ValueError("Invalud Phone Number")
+        return v
 
 
 # Properties to receive via API on update

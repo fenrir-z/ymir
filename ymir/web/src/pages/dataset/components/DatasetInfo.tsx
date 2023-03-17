@@ -6,8 +6,13 @@ import t from '@/utils/t'
 import ObjectTypeTag from '@/components/project/ObjectTypeTag'
 import VersionName from '@/components/result/VersionName'
 
-const DatasetInfo: FC<{ dataset?: YModels.Dataset | YModels.Prediction; pred?: boolean }> = ({ dataset, pred }) => {
-  return dataset ? (
+const DatasetInfo: FC<{ dataset?: YModels.Prediction | YModels.Dataset }> = ({ dataset }) => {
+  if (!dataset) {
+    return null
+  }
+  const pred = 'pred' in dataset
+  const inferClass = pred ? dataset?.inferClass : []
+  return (
     <Space wrap={true}>
       {!pred ? (
         <strong>
@@ -16,16 +21,16 @@ const DatasetInfo: FC<{ dataset?: YModels.Dataset | YModels.Prediction; pred?: b
       ) : null}
       <span>{t('dataset.detail.pager.total', { total: dataset.assetCount })}</span>
       <ObjectTypeTag type={dataset.type} />
-      {pred && dataset?.inferClass ? (
+      {pred && inferClass ? (
         <div>
           {t('dataset.detail.infer.class')}
-          {dataset?.inferClass?.map((cls) => (
+          {inferClass?.map((cls) => (
             <Tag key={cls}>{cls}</Tag>
           ))}
         </div>
       ) : null}
     </Space>
-  ) : null
+  )
 }
 
 export default DatasetInfo
