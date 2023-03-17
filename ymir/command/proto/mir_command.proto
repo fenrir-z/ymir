@@ -52,6 +52,7 @@ enum TaskType {
     TaskTypeCopyModel = 14;
     TaskTypeDatasetInfer = 15;
     TaskTypeEvaluate = 16;
+    TaskTypePullImage = 17;
 };
 
 enum TaskState {

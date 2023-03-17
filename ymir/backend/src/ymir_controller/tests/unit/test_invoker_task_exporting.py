@@ -88,7 +88,7 @@ class TestInvokerTaskExporting(unittest.TestCase):
         req_create_task = backend_pb2.ReqCreateTask()
         req_create_task.task_type = mir_cmd_pb.TaskType.TaskTypeExportData
         req_create_task.no_task_monitor = True
-        req_create_task.exporting.CopyFrom(exporting_request)
+        req_create_task.export_dataset.CopyFrom(exporting_request)
         assets_config = {'assetskvlocation': self._storage_root}
         working_dir = os.path.join(self._sandbox_root, "work_dir",
                                    mir_cmd_pb.TaskType.Name(mir_cmd_pb.TaskType.TaskTypeExportData), self._task_id,

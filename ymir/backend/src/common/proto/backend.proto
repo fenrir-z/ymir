@@ -95,7 +95,7 @@ message GeneralReq {
     // use in filter and fuse: filter from gt, or pred, or any of them
     mir.command.AnnotationType annotation_type = 28;
     ReqCreateTask req_create_task = 1001;
-    repeated ReqCreateTask sequential_tasks = 1002;
+    repeated ReqCreateTask req_create_sequential_tasks = 1002;
 
     reserved 17, 24;
 }
@@ -126,15 +126,22 @@ message ReqCreateTask {
     // task type
     mir.command.TaskType task_type = 1;
     bool no_task_monitor = 2;
+    string task_id = 4;
 
+    // TMI tasks
     TaskReqTraining training = 101;
     TaskReqMining mining = 102;
+
+    // Dataset & model tasks
     TaskReqImportDataset import_dataset = 103;
-    TaskReqExporting exporting = 104;
-    TaskReqCopyData copy = 105;
+    TaskReqExportDataset export_dataset = 104;
+    TaskReqCopyDataset copy = 105;
     TaskReqLabeling labeling = 106;
     TaskReqImportModel import_model = 107;
     TaskReqFuse fuse = 108;
+
+    // Docker image tasks
+    TaskReqPullImage pull_image = 109;
 }
 
 message TrainingDatasetType {
@@ -144,12 +151,35 @@ message TrainingDatasetType {
 
 message TaskReqTraining {
     repeated TrainingDatasetType in_dataset_types = 1;
-    string preprocess_config = 2;
+
+    MergeStrategy merge_strategy = 11;
+
+    // Task configure
+    repeated int32 in_class_ids = 20;
+    string preprocess_config = 21;
+    string docker_image_name = 22;
+    string docker_image_config = 23;
+
+    // Optional, for fine-tuning (use pretrained model)
+    string model_hash = 30;
+    string model_stage = 31;
+
+    reserved 2;
 }
 
 message TaskReqMining {
-    int32 top_k = 1;  // > 0, will keep all if set to 0.
-    bool generate_annotations = 2;
+    string in_dataset_id = 1;
+
+    int32 top_k = 10;  // > 0, will keep all if set to 0.
+    bool generate_annotations = 11;
+
+    // Task configure
+    string docker_image_name = 20;
+    string docker_image_config = 21;
+
+    // Model
+    string model_hash = 30;
+    string model_stage = 31;
 }
 
 message TaskReqImportDataset {
@@ -162,24 +192,26 @@ message TaskReqImportDataset {
     string gt_dir = 3;
     // strategy for unknown class types: stop, ignore or add
     UnknownTypesStrategy unknown_types_strategy = 4;
-    bool clean_dirs = 5;
+    bool clean_dirs = 5;  // todo: remove or keep?
     mir.command.ObjectType object_type = 6;
     bool is_instance_segmentation = 7;
 }
 
-message TaskReqExporting {
-    string dataset_id = 1;
+message TaskReqExportDataset {
+    string in_dataset_id = 1;
     mir.command.ExportFormat format = 2;
     string asset_dir = 3;
     string pred_dir = 4;
     string gt_dir = 5;
 }
 
-message TaskReqCopyData {
+message TaskReqCopyDataset {
     string src_user_id = 1;
     string src_repo_id = 2;
-    bool name_strategy_ignore = 3;
-    bool drop_annotations = 4;
+
+    string in_dataset_id = 10;
+    bool name_strategy_ignore = 11;
+    bool drop_annotations = 12;
 }
 
 message TaskReqFuse {
@@ -207,10 +239,15 @@ message TaskReqLabeling {
     mir.command.AnnotationType annotation_type = 5;
     mir.command.ObjectType object_type = 6;
     bool is_instance_segmentation = 7;
+    string in_dataset_id = 8;
 }
 
 message TaskReqImportModel {
     string model_package_path = 1;
+}
+
+message TaskReqPullImage {
+    string docker_image_name = 10;
 }
 
 message RespCMDInference {

@@ -15,7 +15,7 @@ class TaskExportingInvoker(TaskBaseInvoker):
             return utils.make_general_response(code=CTLResponseCode.ARG_VALIDATION_FAILED,
                                                message=f"Invalid in_dataset_ids {request.in_dataset_ids}")
 
-        exporting_request = request.req_create_task.exporting
+        exporting_request = request.req_create_task.export_dataset
         asset_dir = exporting_request.asset_dir
         if not asset_dir:
             return utils.make_general_response(code=CTLResponseCode.ARG_VALIDATION_FAILED, message="empty asset_dir")
@@ -43,7 +43,7 @@ class TaskExportingInvoker(TaskBaseInvoker):
                               assets_config: Dict[str, str], repo_root: str, master_task_id: str, subtask_id: str,
                               subtask_workdir: str, his_task_id: Optional[str],
                               in_dataset_ids: List[str]) -> backend_pb2.GeneralResp:
-        exporting_request = request.req_create_task.exporting
+        exporting_request = request.req_create_task.export_dataset
         media_location = assets_config['assetskvlocation']
         exporting_response = cls.exporting_cmd(repo_root=repo_root,
                                                label_storage_file=user_labels.storage_file,
