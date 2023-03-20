@@ -81,9 +81,9 @@ class BaseMirControllerInvoker(ABC):
         logging.info(str(self))
 
         if not check_task_id(tid=self._task_id, uid=self._user_id, rid=self._repo_id):
-            message = f"tid mismatch: {self._task_id}, user: {self._user_id}, repo: {self._repo_id}"
-            logging.error(message)
-            return utils.make_general_response(code=CTLResponseCode.INVOKER_INVALID_ARGS, message=message)
+            return utils.make_general_response(
+                code=CTLResponseCode.INVOKER_INVALID_ARGS,
+                message=f"tid mismatch: {self._task_id}, user: {self._user_id}, repo: {self._repo_id}")
 
         response = self.pre_invoke()
         if response.code != CTLResponseCode.CTR_OK:

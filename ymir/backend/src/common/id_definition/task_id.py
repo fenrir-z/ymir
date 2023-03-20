@@ -63,5 +63,8 @@ def check_task_id(tid: str, uid: str, rid: str) -> bool:
     if not tid:
         return True
 
-    task_id: TaskId = TaskId.from_task_id(tid)
-    return uid == task_id.user_id and rid == task_id.repo_id
+    try:
+        task_id: TaskId = TaskId.from_task_id(tid)
+        return uid == task_id.user_id and rid == task_id.repo_id
+    except Exception as e:
+        return False
