@@ -62,7 +62,7 @@ class MirControllerService(backend_pb2_grpc.mir_controller_serviceServicer):
 
         if isinstance(invoker_result, backend_pb2.GeneralResp):
             if invoker_result.code != CTLResponseCode.CTR_OK:
-                logging.error(f"Task error, tid: {invoker_result.req_task_id}, code: {invoker_result.code}, "
+                logging.error(f"Task error, tid: {request.task_id}, code: {invoker_result.code}, "
                               f"msg: {invoker_result.message}")
             return invoker_result
 
